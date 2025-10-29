@@ -103,4 +103,191 @@ QUIZ_DATA = [
 def initialize_session_state():
     """세션 상태를 초기화합니다."""
     if 'current_quiz_index' not in st.session_state:
-        st.session_state.current
+        st.session_state.current_quiz_index = random.randrange(len(QUIZ_DATA)) 
+    if 'incorrect_attempts' not in st.session_state:
+        st.session_state.incorrect_attempts = 0
+    if 'show_result' not in st.session_state:
+        st.session_state.show_result = False
+    if 'quiz_history' not in st.session_state:
+        st.session_state.quiz_history = []
+    # 사용자 입력값을 저장할 초기 상태 추가 (폼 밖으로 버튼을 빼면서 필요)
+    if 'user_answer_value' not in st.session_state:
+        st.session_state.user_answer_value = ''
+    if 'user_answer_multi_value' not in st.session_state:
+        st.session_state.user_answer_multi_value = []
+
+def go_next_quiz():
+    """다음 문제로 넘어가기 위해 상태를 리셋하고 새 문제를 설정합니다."""
+    
+    current_id = QUIZ_DATA[st.session_state.current_quiz_index]["id"]
+    if current_id not in st.session_state.quiz_history:
+        st.session_state.quiz_history.append(current_id)
+        
+    available_indices = [i for i, q in enumerate(QUIZ_DATA) if q["id"] not in st.session_state.quiz_history]
+    
+    if not available_indices:
+        st.session_state.quiz_history = []
+        new_idx = random.randrange(len(QUIZ_DATA))
+    else:
+        new_idx = random.choice(available_indices)
+
+    st.session_state.current_quiz_index = new_idx
+    st.session_state.incorrect_attempts = 0
+    st.session_state.show_result = False
+    
+    # 사용자 입력값 리셋
+    st.session_state.user_answer_value = ''
+    st.session_state.user_answer_multi_value = []
+    
+    # 변경된 함수 사용: st.experimental_rerun() -> st.rerun()
+    st.rerun() 
+
+def check_answer(user_input, current_q):
+    """사용자 답변을 확인하고 상태를 업데이트합니다."""
+    
+    is_correct = False
+    correct_answer = current_q["answer"]
+    
+    if current_q["type"] == "text_input":
+        user_clean = str(user_input).replace(' ', '').lower()
+        answer_clean = str(correct_answer).replace(' ', '').lower()
+        
+        if ',' in answer_clean:
+            user_clean_list = [s.strip() for s in user_clean.split(',')]
+            answer_clean_list = [s.strip() for s in answer_clean.split(',')]
+            is_correct = (user_clean_list == answer_clean_list)
+        else:
+            is_correct = (user_clean == answer_clean)
+        
+    elif current_q["type"] == "multiselect":
+        user_set = set(user_input)
+        answer_set = correct_answer
+        is_correct = (user_set == answer_set)
+
+    if is_correct:
+        st.session_state.show_result = True
+        st.session_state.is_last_attempt_correct = True
+    else:
+        st.session_state.incorrect_attempts += 1
+        st.session_state.is_last_attempt_correct = False
+        
+        if st.session_state.incorrect_attempts >= 2:
+            st.session_state.show_result = True
+            st.session_state.is_last_attempt_correct = False
+
+# --- 3. 앱 본문 레이아웃 ---
+
+st.set_page_config(page_title="유리함수 그래프 및 퀴즈", layout="wide")
+initialize_session_state()
+
+st.title("📚 유리함수 그래프 교과서")
+st.markdown("---")
+
+## 📖 1. 유리함수의 정의와 개념
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("1.1 유리함수의 정의")
+    st.markdown("""
+    **유리함수(Rational Function)**는 함수 $y = f(x)$에서 
+    $f(x)$가 **유리식**인 함수를 말합니다.
+    
+    $$y = \\frac{P(x)}{Q(x)}$$
+    꼴로 나타낼 수 있습니다. (단, $P(x), Q(x)$는 다항식이고, $Q(x)$는 영다항식이 아님)
+    
+    * **다항함수**: 분모 $Q(x)$가 상수인 경우입니다 (예: $y=2x-1$).
+    * **분수함수**: 분모 $Q(x)$에 $x$가 포함된 경우이며, 일반적으로 유리함수라 하면 분수함수를 뜻합니다.
+    """)
+
+with col2:
+    st.subheader("1.2 정의역과 점근선")
+    st.markdown("""
+    유리함수의 정의역은 특별한 언급이 없으면 **분모를 0으로 만들지 않는**
+    실수 전체의 집합입니다.
+    
+    * **수직 점근선**: 분모 $Q(x)=0$이 되는 $x$ 값에서 발생합니다.
+    * **수평 점근선**: $x$가 $\pm\infty$로 갈 때 $y$가 수렴하는 값입니다.
+    
+    ### 표준형 $y = \\frac{k}{x-p} + q$의 특징
+    * **점근선**: $x = p$, $y = q$
+    * **대칭의 중심**: 점 $(p, q)$에 대하여 대칭입니다.
+    """)
+
+st.markdown("---")
+
+## ✍️ 2. 직접 그래프 그려보기
+st.subheader("2. 함수 식을 넣어 그래프 그려보기")
+st.markdown("분자와 분모에 $x$에 대한 식을 입력하고 **Graph Plot** 버튼을 누르세요. **(예: 분자 `3`, 분모 `x-2` 또는 분자 `2*x-5`, 분모 `x-3`)**")
+
+with st.form("rational_function_form"):
+    col_num, col_den = st.columns(2)
+    with col_num:
+        numerator_input = st.text_input("분자 (P(x))", value="3")
+    with col_den:
+        denominator_input = st.text_input("분모 (Q(x))", value="x-2")
+    
+    submitted = st.form_submit_button("Graph Plot")
+
+if submitted:
+    plot_rational_function(numerator_input, denominator_input)
+
+st.markdown("---")
+
+## ✅ 3. 유리함수 개념 확인 퀴즈
+st.subheader("3. 유리함수 개념 확인 퀴즈")
+
+current_q_index = st.session_state.current_quiz_index
+current_q = QUIZ_DATA[current_q_index]
+
+st.markdown(f"### ❓ 문제 {current_q['id']} (총 {len(QUIZ_DATA)}문제 중)")
+st.markdown(current_q["question"])
+
+# 사용자 입력 필드를 폼 외부로 꺼내서 버튼 충돌 방지
+user_input_key = "current_user_input"
+
+if current_q["type"] == "text_input":
+    user_input = st.text_input("답변 입력", key=user_input_key, value=st.session_state.user_answer_value, placeholder=current_q.get("placeholder", ""), disabled=st.session_state.show_result)
+    
+elif current_q["type"] == "multiselect":
+    user_input = st.multiselect("답변 선택 (하나 이상 선택 가능)", current_q["options"], key=user_input_key, default=st.session_state.user_answer_multi_value, disabled=st.session_state.show_result)
+
+
+col_check, col_new = st.columns([1, 1])
+
+# 버튼 클릭 핸들링을 위한 함수
+def handle_check_answer():
+    if current_q["type"] == "text_input":
+        # 현재 입력된 텍스트 값을 세션 상태에 저장 후 체크 함수 호출
+        check_answer(st.session_state[user_input_key], current_q)
+    elif current_q["type"] == "multiselect":
+        # 현재 선택된 멀티셀렉트 값을 세션 상태에 저장 후 체크 함수 호출
+        check_answer(st.session_state[user_input_key], current_q)
+    
+with col_check:
+    # 정답 확인 버튼. 클릭 시 handle_check_answer 호출
+    st.button("정답 확인", on_click=handle_check_answer, disabled=st.session_state.show_result)
+    
+with col_new:
+    # 랜덤 문제 가져오기 버튼. on_click 시 go_next_quiz 호출
+    st.button("랜덤 문제 가져오기 🔄", on_click=go_next_quiz)
+
+
+# 정답 확인 및 피드백 로직 (버튼 클릭 후 상태 변화에 따라 실행)
+if st.session_state.show_result:
+    
+    if st.session_state.is_last_attempt_correct:
+        st.success(f"✅ 정답입니다! (총 오답 횟수: {st.session_state.incorrect_attempts}회)")
+    else:
+        st.warning(f"⚠️ 오답 횟수 2회 초과로 정답을 공개합니다. 다음 문제로 넘어가세요.")
+        
+    # 정답 및 풀이 표시
+    st.markdown("#### 정답 및 풀이")
+    st.markdown(f"**정답**: **{current_q['answer']}**")
+    st.info(current_q['explanation'])
+    
+    # 문제 해결 시 "다음 문제" 버튼 표시
+    st.button("다음 문제 →", key="next_quiz_button", on_click=go_next_quiz)
+
+# 오답 피드백 (정답 확인 버튼이 눌렸고, 결과가 아직 공개되지 않았을 때)
+elif st.session_state.incorrect_attempts > 0 and not st.session_state.show_result:
+    st.error(f"❌ 오답입니다. 다시 한 번 풀어보세요! (현재 오답 횟수: {st.session_state.incorrect_attempts}회)")
