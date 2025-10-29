@@ -4,35 +4,25 @@ import matplotlib.pyplot as plt
 import re
 import random
 
-# --- 1. 전처리 및 그래프 함수 ---
+# --- 1. 전처리 및 그래프 함수 (유지) ---
 
 def preprocess_expression(expression):
-    """
-    사용자가 입력한 수학식을 Python이 해석할 수 있도록 전처리합니다.
-    - '2x'를 '2*x'로, 'x^2'을 'x**2'로 변환합니다.
-    """
     expression = expression.replace(' ', '')
     expression = re.sub(r'(\d)([a-zA-Z])', r'\1*\2', expression)
     expression = re.sub(r'(\))([a-zA-Z])', r'\1*\2', expression)
     expression = expression.replace('^', '**')
-    
     return expression
 
 def plot_rational_function(numerator_str, denominator_str):
-    """사용자 입력 문자열로부터 유리함수 그래프를 그립니다."""
-    
     preprocessed_numerator = preprocess_expression(numerator_str)
     preprocessed_denominator = preprocess_expression(denominator_str)
     
     try:
         x = np.linspace(-10, 10, 400)
-        
         P = lambda x_val: eval(preprocessed_numerator, {"x": x_val, "np": np})
         Q = lambda x_val: eval(preprocessed_denominator, {"x": x_val, "np": np})
-        
         y = P(x) / Q(x)
         
-        # 수직 점근선 찾기 (분모가 0이 되는 지점 탐색)
         asymptotes_x = []
         x_check = np.linspace(-10, 10, 2000)
         Q_check = Q(x_check)
@@ -110,14 +100,13 @@ def initialize_session_state():
         st.session_state.show_result = False
     if 'quiz_history' not in st.session_state:
         st.session_state.quiz_history = []
-    # 사용자 입력값을 저장할 초기 상태 추가 (폼 밖으로 버튼을 빼면서 필요)
     if 'user_answer_value' not in st.session_state:
         st.session_state.user_answer_value = ''
     if 'user_answer_multi_value' not in st.session_state:
         st.session_state.user_answer_multi_value = []
 
 def go_next_quiz():
-    """다음 문제로 넘어가기 위해 상태를 리셋하고 새 문제를 설정합니다."""
+    """다음 문제로 넘어가기 위해 상태를 리셋하고 새 문제를 설정합니다. (st.rerun() 제거)"""
     
     current_id = QUIZ_DATA[st.session_state.current_quiz_index]["id"]
     if current_id not in st.session_state.quiz_history:
@@ -139,17 +128,17 @@ def go_next_quiz():
     st.session_state.user_answer_value = ''
     st.session_state.user_answer_multi_value = []
     
-    # 변경된 함수 사용: st.experimental_rerun() -> st.rerun()
-    st.rerun() 
+    # **핵심 수정:** 콜백 내부에서는 st.rerun()을 호출하지 않음.
+    # 상태가 변경되었으므로 스크립트가 자연스럽게 재실행됨.
 
-def check_answer(user_input, current_q):
+def check_answer(user_answer, current_q):
     """사용자 답변을 확인하고 상태를 업데이트합니다."""
     
     is_correct = False
     correct_answer = current_q["answer"]
     
     if current_q["type"] == "text_input":
-        user_clean = str(user_input).replace(' ', '').lower()
+        user_clean = str(user_answer).replace(' ', '').lower()
         answer_clean = str(correct_answer).replace(' ', '').lower()
         
         if ',' in answer_clean:
@@ -160,7 +149,7 @@ def check_answer(user_input, current_q):
             is_correct = (user_clean == answer_clean)
         
     elif current_q["type"] == "multiselect":
-        user_set = set(user_input)
+        user_set = set(user_answer)
         answer_set = correct_answer
         is_correct = (user_set == answer_set)
 
@@ -194,9 +183,6 @@ with col1:
     
     $$y = \\frac{P(x)}{Q(x)}$$
     꼴로 나타낼 수 있습니다. (단, $P(x), Q(x)$는 다항식이고, $Q(x)$는 영다항식이 아님)
-    
-    * **다항함수**: 분모 $Q(x)$가 상수인 경우입니다 (예: $y=2x-1$).
-    * **분수함수**: 분모 $Q(x)$에 $x$가 포함된 경우이며, 일반적으로 유리함수라 하면 분수함수를 뜻합니다.
     """)
 
 with col2:
@@ -249,30 +235,33 @@ if current_q["type"] == "text_input":
     user_input = st.text_input("답변 입력", key=user_input_key, value=st.session_state.user_answer_value, placeholder=current_q.get("placeholder", ""), disabled=st.session_state.show_result)
     
 elif current_q["type"] == "multiselect":
-    user_input = st.multiselect("답변 선택 (하나 이상 선택 가능)", current_q["options"], key=user_input_key, default=st.session_state.user_answer_multi_value, disabled=st.session_state.show_result)
+    # 멀티셀렉트의 default 값은 리스트여야 함
+    default_value = st.session_state.user_answer_multi_value if isinstance(st.session_state.user_answer_multi_value, list) else []
+    user_input = st.multiselect("답변 선택 (하나 이상 선택 가능)", current_q["options"], key=user_input_key, default=default_value, disabled=st.session_state.show_result)
 
-
-col_check, col_new = st.columns([1, 1])
 
 # 버튼 클릭 핸들링을 위한 함수
 def handle_check_answer():
+    # 현재 입력 값을 세션 상태 변수에 저장 (st.session_state[user_input_key]는 위젯 값)
     if current_q["type"] == "text_input":
-        # 현재 입력된 텍스트 값을 세션 상태에 저장 후 체크 함수 호출
-        check_answer(st.session_state[user_input_key], current_q)
+        st.session_state.user_answer_value = st.session_state[user_input_key]
+        check_answer(st.session_state.user_answer_value, current_q)
     elif current_q["type"] == "multiselect":
-        # 현재 선택된 멀티셀렉트 값을 세션 상태에 저장 후 체크 함수 호출
-        check_answer(st.session_state[user_input_key], current_q)
+        st.session_state.user_answer_multi_value = st.session_state[user_input_key]
+        check_answer(st.session_state.user_answer_multi_value, current_q)
     
+col_check, col_new = st.columns([1, 1])
+
 with col_check:
-    # 정답 확인 버튼. 클릭 시 handle_check_answer 호출
+    # 정답 확인 버튼
     st.button("정답 확인", on_click=handle_check_answer, disabled=st.session_state.show_result)
     
 with col_new:
-    # 랜덤 문제 가져오기 버튼. on_click 시 go_next_quiz 호출
+    # 랜덤 문제 가져오기 버튼
     st.button("랜덤 문제 가져오기 🔄", on_click=go_next_quiz)
 
 
-# 정답 확인 및 피드백 로직 (버튼 클릭 후 상태 변화에 따라 실행)
+# 정답 확인 및 피드백 로직
 if st.session_state.show_result:
     
     if st.session_state.is_last_attempt_correct:
@@ -288,6 +277,6 @@ if st.session_state.show_result:
     # 문제 해결 시 "다음 문제" 버튼 표시
     st.button("다음 문제 →", key="next_quiz_button", on_click=go_next_quiz)
 
-# 오답 피드백 (정답 확인 버튼이 눌렸고, 결과가 아직 공개되지 않았을 때)
+# 오답 피드백
 elif st.session_state.incorrect_attempts > 0 and not st.session_state.show_result:
     st.error(f"❌ 오답입니다. 다시 한 번 풀어보세요! (현재 오답 횟수: {st.session_state.incorrect_attempts}회)")
