@@ -4,19 +4,16 @@ import matplotlib.pyplot as plt
 import re
 import random
 
-# --- 1. 전처리 및 그래프 함수 (기존 코드 유지) ---
+# --- 1. 전처리 및 그래프 함수 ---
 
 def preprocess_expression(expression):
     """
     사용자가 입력한 수학식을 Python이 해석할 수 있도록 전처리합니다.
     - '2x'를 '2*x'로, 'x^2'을 'x**2'로 변환합니다.
     """
-    # 1. 'x' 앞에 숫자가 오거나 괄호가 오는 경우 '*' 추가 (예: 2x -> 2*x, 3(x) -> 3*(x))
-    # 단, 'x'가 아닌 다른 변수나 함수 이름의 일부인 경우는 제외
+    expression = expression.replace(' ', '')
     expression = re.sub(r'(\d)([a-zA-Z])', r'\1*\2', expression)
     expression = re.sub(r'(\))([a-zA-Z])', r'\1*\2', expression)
-    
-    # 2. 거듭제곱 '^'를 Python의 '**'로 변환 (예: x^2 -> x**2)
     expression = expression.replace('^', '**')
     
     return expression
@@ -67,12 +64,9 @@ def plot_rational_function(numerator_str, denominator_str):
         
     except Exception as e:
         st.error(f"❌ 그래프를 그리는 데 오류가 발생했습니다. 다음 사항을 확인해 주세요:")
-        st.markdown(f"""
-        * **곱셈 기호**: `2x` 대신 `2*x`를, $x^2$ 대신 `x**2`을 사용해 주세요. (자동 변환을 시도했으나 복잡한 식은 직접 입력해야 합니다.)
-        * **오류 내용**: `{e}`
-        """)
+        st.markdown(f"**오류 내용**: `{e}`")
 
-# --- 2. 퀴즈 데이터 및 상태 관리 (문제 추가) ---
+# --- 2. 퀴즈 데이터 및 상태 관리 ---
 
 QUIZ_DATA = [
     {
@@ -93,17 +87,15 @@ QUIZ_DATA = [
         "id": 3,
         "question": r"유리함수 $y = \frac{-1}{x}$의 그래프에 대한 설명 중 **옳은 것**을 모두 고르시오.",
         "answer": set(['제 2 사분면과 제 4 사분면을 지난다', '원점에 대해 대칭이다', '수직 점근선은 y축이다']),
-        "explanation": r"$y=\frac{k}{x}$에서 $k=-1$로 음수이므로, 그래프는 원점(점근선의 교점)을 중심으로 $\mathbf{제 2 사분면과 제 4 사분면}$을 지납니다. 또한 기본형이므로 $\mathbf{원점에 대해 대칭}$이며, 수직 점근선은 $x=0$, 즉 $\mathbf{y축}$입니다.",
+        "explanation": r"$y=\frac{k}{x}$에서 $k=-1$로 음수이므로, 그래프는 $\mathbf{제 2 사분면과 제 4 사분면}$을 지납니다. 또한 기본형이므로 $\mathbf{원점에 대해 대칭}$이며, 수직 점근선은 $x=0$, 즉 $\mathbf{y축}$입니다.",
         "type": "multiselect",
         "options": ['원점에 대해 대칭이다', '수직 점근선은 y축이다', '제 1 사분면과 제 3 사분면을 지난다', '제 2 사분면과 제 4 사분면을 지난다'],
     },
     {
         "id": 4,
-        "question": r"함수 $y = \frac{x+1}{x-3}$의 그래프를 $x$축 방향으로 $-2$만큼, $y$축 방향으로 $1$만큼 평행이동하면 $y = \frac{k}{x-p} + q$ 꼴에서 $p$와 $q$의 값은 각각 무엇인가요? ($p, q$ 순서대로 콤마로 구분하여 입력, 예: 1, 2)",
+        "question": r"함수 $y = \frac{x+1}{x-3}$의 그래프를 $x$축 방향으로 $-2$만큼, $y$축 방향으로 $2$만큼 평행이동한 후의 점근선의 교점 $(p, q)$는 무엇인가요? ($p, q$ 순서대로 콤마로 구분하여 입력, 예: 1, 2)",
         "answer": "1, 3",
-        "explanation": r"주어진 함수의 점근선은 $x=3, y=1$입니다. \n평행이동 후의 점근선은 $x' = 3+(-2) = 1$, $y' = 1+1 = 2$가 되어야 합니다. \n앗! 문제 식 $y = \frac{x+1}{x-3} = \frac{(x-3)+4}{x-3} = 1 + \frac{4}{x-3}$ 이므로, 초기 점근선은 $x=3, y=1$입니다. \n평행이동 후 점근선은 $x' = 3+(-2) = 1$, $y' = 1+1 = 2$가 됩니다. \n**정답은 $p=1, q=2$입니다. 문제와 설명의 $q$ 값이 일치하도록 $y$축 평행이동 값은 $1$이 아닌 $2$로 수정하겠습니다.**\n\n**수정된 설명**: 초기 점근선은 $x=3, y=1$. 평행이동 ($x$축: $-2$, $y$축: $2$) 후 점근선은 $x' = 3+(-2) = 1$, $y' = 1+2 = 3$입니다. 따라서 $\mathbf{p=1, q=3}$입니다.",
-        "answer_new": "1, 3",
-        "explanation_new": r"주어진 함수 $y = \frac{x+1}{x-3} = 1 + \frac{4}{x-3}$ 의 점근선은 $x=3, y=1$ 입니다. \n$x$축으로 $-2$만큼, $y$축으로 $2$만큼 평행이동하면 새로운 점근선은 $x'=3+(-2)=1$, $y'=1+2=3$ 이 됩니다. \n따라서 $\mathbf{p=1, q=3}$ 입니다.",
+        "explanation": r"주어진 함수 $y = \frac{x+1}{x-3} = 1 + \frac{4}{x-3}$ 의 점근선은 $x=3, y=1$ 입니다. \n평행이동 ($x$축: $-2$, $y$축: $2$) 후 새로운 점근선은 $x'=3+(-2)=1$, $y'=1+2=3$ 이 됩니다. \n따라서 교점은 $(1, 3)$ 이므로 $\mathbf{1, 3}$ 입니다.",
         "type": "text_input",
     }
 ]
@@ -111,45 +103,39 @@ QUIZ_DATA = [
 def initialize_session_state():
     """세션 상태를 초기화합니다."""
     if 'current_quiz_index' not in st.session_state:
-        # 초기 문제 인덱스를 랜덤으로 설정
         st.session_state.current_quiz_index = random.randrange(len(QUIZ_DATA)) 
     if 'incorrect_attempts' not in st.session_state:
         st.session_state.incorrect_attempts = 0
     if 'show_result' not in st.session_state:
         st.session_state.show_result = False
     if 'quiz_history' not in st.session_state:
-        st.session_state.quiz_history = [] # 출제된 문제 ID 목록
+        st.session_state.quiz_history = [] 
 
 def go_next_quiz():
     """다음 문제로 넘어가기 위해 상태를 리셋하고 새 문제를 설정합니다."""
     
-    # 현재 문제 ID를 히스토리에 추가
     current_id = QUIZ_DATA[st.session_state.current_quiz_index]["id"]
     if current_id not in st.session_state.quiz_history:
         st.session_state.quiz_history.append(current_id)
         
-    # 이미 출제된 문제들을 제외한 인덱스 목록
     available_indices = [i for i, q in enumerate(QUIZ_DATA) if q["id"] not in st.session_state.quiz_history]
     
     if not available_indices:
-        # 모든 문제를 다 풀었으면, 히스토리를 초기화하고 전체에서 다시 랜덤 선택
         st.session_state.quiz_history = []
         new_idx = random.randrange(len(QUIZ_DATA))
     else:
-        # 남아있는 문제 중에서 랜덤 선택
         new_idx = random.choice(available_indices)
 
     st.session_state.current_quiz_index = new_idx
     st.session_state.incorrect_attempts = 0
     st.session_state.show_result = False
     
-    # 사용자 입력 필드 값 초기화 (세션 상태에서 제거)
     if "user_answer" in st.session_state:
          del st.session_state.user_answer 
     if "user_answer_multi" in st.session_state:
          st.session_state.user_answer_multi = []
     
-    st.experimental_rerun() # UI 강제 새로고침
+    st.experimental_rerun() 
 
 def check_answer(user_answer, current_q):
     """사용자 답변을 확인하고 상태를 업데이트합니다."""
@@ -161,7 +147,6 @@ def check_answer(user_answer, current_q):
         user_clean = str(user_answer).replace(' ', '').lower()
         answer_clean = str(correct_answer).replace(' ', '').lower()
         
-        # 쉼표 구분자 처리 (문제 4와 같은 경우)
         if ',' in answer_clean:
             user_clean_list = [s.strip() for s in user_clean.split(',')]
             answer_clean_list = [s.strip() for s in answer_clean.split(',')]
@@ -181,7 +166,6 @@ def check_answer(user_answer, current_q):
         st.session_state.incorrect_attempts += 1
         st.session_state.is_last_attempt_correct = False
         
-        # 2회 오답 시 자동 정답 공개
         if st.session_state.incorrect_attempts >= 2:
             st.session_state.show_result = True
             st.session_state.is_last_attempt_correct = False
@@ -191,12 +175,44 @@ def check_answer(user_answer, current_q):
 st.set_page_config(page_title="유리함수 그래프 및 퀴즈", layout="wide")
 initialize_session_state()
 
-st.title("📊 유리함수 그래프 및 확인 퀴즈")
+st.title("📚 유리함수 그래프 교과서")
 st.markdown("---")
 
-## ✍️ 직접 그래프 그리기
-st.subheader("1. 함수 식을 넣어 그래프 그려보기")
-st.markdown("분자와 분모에 $x$에 대한 식을 입력하고 **Graph Plot** 버튼을 누르세요.")
+## 📖 1. 유리함수의 정의와 개념
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("1.1 유리함수의 정의")
+    st.markdown("""
+    **유리함수(Rational Function)**는 함수 $y = f(x)$에서 
+    $f(x)$가 **유리식**인 함수를 말합니다.
+    
+    $$y = \\frac{P(x)}{Q(x)}$$
+    꼴로 나타낼 수 있습니다. (단, $P(x), Q(x)$는 다항식이고, $Q(x)$는 영다항식이 아님)
+    
+    * **다항함수**: 분모 $Q(x)$가 상수인 경우입니다 (예: $y=2x-1$).
+    * **분수함수**: 분모 $Q(x)$에 $x$가 포함된 경우이며, 일반적으로 유리함수라 하면 분수함수를 뜻합니다.
+    """)
+
+with col2:
+    st.subheader("1.2 정의역과 점근선")
+    st.markdown("""
+    유리함수의 정의역은 특별한 언급이 없으면 **분모를 0으로 만들지 않는**
+    실수 전체의 집합입니다.
+    
+    * **수직 점근선**: 분모 $Q(x)=0$이 되는 $x$ 값에서 발생합니다.
+    * **수평 점근선**: $x$가 $\pm\infty$로 갈 때 $y$가 수렴하는 값입니다.
+    
+    ### 표준형 $y = \\frac{k}{x-p} + q$의 특징
+    * **점근선**: $x = p$, $y = q$
+    * **대칭의 중심**: 점 $(p, q)$에 대하여 대칭입니다.
+    """)
+
+st.markdown("---")
+
+## ✍️ 2. 직접 그래프 그려보기
+st.subheader("2. 함수 식을 넣어 그래프 그려보기")
+st.markdown("분자와 분모에 $x$에 대한 식을 입력하고 **Graph Plot** 버튼을 누르세요. **(예: 분자 `3`, 분모 `x-2` 또는 분자 `2*x-5`, 분모 `x-3`)**")
 
 with st.form("rational_function_form"):
     col_num, col_den = st.columns(2)
@@ -212,14 +228,13 @@ if submitted:
 
 st.markdown("---")
 
-## ✅ 확인 퀴즈
-st.subheader("2. 유리함수 개념 확인 퀴즈")
+## ✅ 3. 유리함수 개념 확인 퀴즈
+st.subheader("3. 유리함수 개념 확인 퀴즈")
 
-# 퀴즈 섹션
 current_q_index = st.session_state.current_quiz_index
 current_q = QUIZ_DATA[current_q_index]
 
-st.markdown(f"### ❓ 문제 {current_q['id']}")
+st.markdown(f"### ❓ 문제 {current_q['id']} (총 {len(QUIZ_DATA)}문제 중)")
 st.markdown(current_q["question"])
 
 quiz_form = st.form("quiz_answer_form")
@@ -228,7 +243,6 @@ user_input_key = "user_answer" if current_q["type"] == "text_input" else "user_a
 with quiz_form:
     user_input = None
     
-    # 퀴즈 타입에 따른 입력 필드 생성
     if current_q["type"] == "text_input":
         user_input = st.text_input("답변 입력", key=user_input_key, placeholder=current_q.get("placeholder", ""))
         
@@ -238,27 +252,22 @@ with quiz_form:
     col_check, col_new = st.columns([1, 1])
     
     with col_check:
-        # 정답 확인 버튼. 정답이 공개되면 비활성화
         check_submitted = st.form_submit_button("정답 확인", disabled=st.session_state.show_result)
         
     with col_new:
-        # 새 문제 버튼 (히스토리 리셋 후 완전 랜덤)
-        st.form_submit_button("새 문제 가져오기 🔄", on_click=go_next_quiz)
+        st.form_submit_button("랜덤 문제 가져오기 🔄", on_click=go_next_quiz) # 버튼 이름을 "랜덤 문제 가져오기"로 수정
 
 
-# 정답 확인 버튼이 눌렸고, 결과가 아직 표시되지 않은 경우에만 채점
+# 정답 확인 및 피드백 로직
 if check_submitted and not st.session_state.show_result:
     check_answer(user_input, current_q)
-
-
-# --- 퀴즈 결과 피드백 표시 ---
 
 if st.session_state.show_result:
     
     if st.session_state.is_last_attempt_correct:
         st.success(f"✅ 정답입니다! (총 오답 횟수: {st.session_state.incorrect_attempts}회)")
     else:
-        st.warning(f"⚠️ 오답 횟수 2회 초과로 정답을 공개합니다. 다시 한 번 풀어보세요!")
+        st.warning(f"⚠️ 오답 횟수 2회 초과로 정답을 공개합니다. 다음 문제로 넘어가세요.")
         
     # 정답 및 풀이 표시
     st.markdown("#### 정답 및 풀이")
@@ -269,5 +278,4 @@ if st.session_state.show_result:
     st.button("다음 문제 →", key="next_quiz_button", on_click=go_next_quiz)
 
 elif check_submitted and not st.session_state.is_last_attempt_correct:
-    # 오답이 2회 미만일 때
     st.error(f"❌ 오답입니다. 다시 한 번 풀어보세요! (현재 오답 횟수: {st.session_state.incorrect_attempts}회)")
