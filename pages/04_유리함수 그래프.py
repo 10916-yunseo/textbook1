@@ -3,8 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # 페이지 설정
+# st.set_page_config() 내에 page_title을 "유리함수 그래프"로 설정합니다.
 st.set_page_config(
-    page_title="유리함수 그래프 교과서",
+    page_title="유리함수 그래프",
     layout="wide"
 )
 
@@ -13,7 +14,7 @@ def plot_rational_function(numerator_str, denominator_str):
     사용자 입력 문자열로부터 유리함수 그래프를 그립니다.
     """
     try:
-        # x 값의 범위 설정 (점근선 근처를 제외)
+        # x 값의 범위 설정
         x = np.linspace(-10, 10, 400)
         
         # 문자열을 파이썬 코드로 변환하여 함수 정의
@@ -27,12 +28,12 @@ def plot_rational_function(numerator_str, denominator_str):
         # 함수 값 계산
         y = P(x) / Q(x)
         
-        # 점근선 찾기 (분모가 0이 되는 x 값)
+        # 수직 점근선 찾기 (분모가 0이 되는 x 값)
         asymptotes_x = []
         x_check = np.linspace(-10, 10, 2000)
         Q_check = Q(x_check)
         
-        # 분모가 0에 가까운 지점을 점근선으로 간주 (약간의 오차 허용)
+        # 분모가 0에 가까운 지점을 점근선으로 간주
         for i in range(len(Q_check) - 1):
             if np.sign(Q_check[i]) != np.sign(Q_check[i+1]) and np.abs(Q_check[i]) < 0.1:
                 asymptotes_x.append(x_check[i])
@@ -48,31 +49,29 @@ def plot_rational_function(numerator_str, denominator_str):
 
         ax.plot(x, y, label=f'$y = \\frac{{{numerator_str}}}{{{denominator_str}}}$')
         
-        # 점근선 표시
+        # 수직 점근선 표시
         for x_a in asymptotes_x:
             ax.axvline(x=x_a, color='r', linestyle='--', label=f'점근선 x={x_a}' if x_a == asymptotes_x[0] else None)
         
-        # 수평 점근선 (분자/분모의 최고차항 계수 비) - 간단한 경우만 처리
+        # 수평 점근선 (간단한 경우만 처리)
         try:
-            # ax+b/cx+d 형태에서 y = a/c
-            if 'x' in numerator_str and 'x' in denominator_str:
-                 # 간단한 파싱으로 계수 추출 시도 (완벽하지 않을 수 있음)
-                num_coeff = 0
-                if 'x' in numerator_str: num_coeff = 1 if 'x' in numerator_str.strip() else float(numerator_str.split('x')[0].strip() or 1)
-                
-                den_coeff = 0
-                if 'x' in denominator_str: den_coeff = 1 if 'x' in denominator_str.strip() else float(denominator_str.split('x')[0].strip() or 1)
+            num_parts = numerator_str.replace(' ', '').split('x')
+            den_parts = denominator_str.replace(' ', '').split('x')
+            
+            # y = (ax+b) / (cx+d) 형태일 때 y = a/c
+            if len(num_parts) > 1 and len(den_parts) > 1:
+                num_coeff = 1 if num_parts[0] == '' else float(num_parts[0])
+                den_coeff = 1 if den_parts[0] == '' else float(den_parts[0])
                 
                 if den_coeff != 0:
                      horizontal_asymptote = num_coeff / den_coeff
                      ax.axhline(y=horizontal_asymptote, color='b', linestyle=':', label=f'점근선 y={horizontal_asymptote}')
 
-            # 분모의 차수가 더 클 경우 y = 0
-            elif 'x' not in numerator_str and 'x' in denominator_str:
+            # 분모의 차수가 분자보다 클 경우 y = 0
+            elif len(num_parts) == 1 and len(den_parts) > 1:
                 ax.axhline(y=0, color='b', linestyle=':', label=f'점근선 y=0')
 
         except Exception:
-            # 점근선 파싱 실패 시 무시
             pass
 
 
@@ -94,7 +93,8 @@ def plot_rational_function(numerator_str, denominator_str):
 
 # --- 앱 본문 시작 ---
 
-st.title("📚 유리함수 그래프 교과서")
+# 앱 본문의 제목을 "유리함수 그래프"로 설정합니다.
+st.title("📊 유리함수 그래프")
 st.markdown("---")
 
 ## 📖 개념 이해: 유리함수란?
@@ -173,16 +173,14 @@ with st.form("rational_function_form"):
 
 if submitted:
     # 폼 제출 시 그래프 그리기 함수 호출
-    # 표준형 y = k/(x-p) + q 의 q는 분자에 포함하여 처리 (P(x)/Q(x) 형태 유지)
     plot_rational_function(numerator_input, denominator_input)
 
-# --- YouTube URL (Step 1 & 2) ---
+# --- 외부 자료 첨부 ---
 
 st.markdown("---")
 
-점근선과 그래프 개형을 이해하는 데 도움이 될 만한 동영상 자료를 첨부합니다.
+st.markdown("점근선과 그래프 개형을 이해하는 데 도움이 될 만한 동영상 자료를 첨부합니다.")
 
-[유리함수의 그래프 개형 쉽고 빠르게 그리기](https://www.youtube.com/watch?v=6ViHq7BSxtU)
+st.markdown("[유리함수의 그래프 개형 쉽고 빠르게 그리기](https://www.youtube.com/watch?v=6ViHq7BSxtU)")
 
-이 영상은 유리함수의 그래프를 쉽고 빠르게 그리는 방법을 보여주어 교과서 내용 보충에 도움이 될 수 있습니다.
-http://googleusercontent.com/youtube_content/0
+st.markdown("이 영상은 유리함수의 그래프를 쉽고 빠르게 그리는 방법을 보여주어 교과서 내용 보충에 도움이 될 수 있습니다.")
