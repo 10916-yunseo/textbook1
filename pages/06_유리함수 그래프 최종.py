@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 # Streamlit 페이지 설정
 st.set_page_config(
-    page_title="유리함수 그래프 분석기 (디버깅 강화)",
+    page_title="유리함수 그래프 분석기 (안정화 버전)",
     layout="wide"
 )
 
@@ -20,27 +20,28 @@ func_str = st.sidebar.text_input(
 )
 
 st.sidebar.header("그래프 범위")
-# 넓은 기본값으로 설정하여 오류 가능성 최소화
 x_min = st.sidebar.number_input("x 축 최소값", value=-20.0, step=1.0)
 x_max = st.sidebar.number_input("x 축 최대값", value=20.0, step=1.0)
 y_min = st.sidebar.number_input("y 축 최소값", value=-50.0, step=1.0)
 y_max = st.sidebar.number_input("y 축 최대값", value=50.0, step=1.0)
 # --- 사이드바 입력 끝 ---
 
-# 주요 로직을 try-except로 감싸 오류 발생 시 사용자에게 명확히 알림
 try:
     # 1. SymPy를 사용하여 함수 분석
     x = sp.Symbol('x')
     f_sym = sp.simplify(func_str)
     
-    # 분자와 분모 추출 및 검사
-    (numer, denom), _ = sp.fraction(f_sym)
-
+    # --- ⭐ 핵심 수정 부분: sp.fraction() 결과를 직접 언팩킹합니다. ---
+    # SymPy 튜플 언팩킹 오류를 피하기 위해 sp.fraction()을 호출하여 분자와 분모를 안전하게 추출
+    # sp.fraction()은 (분자, 분모) 튜플을 반환합니다.
+    numer, denom = sp.fraction(f_sym) 
+    
     # 분모가 상수 0인 경우 처리
     if denom.is_constant() and denom == 0:
         st.error("입력하신 함수는 분모가 0이므로 수학적으로 정의할 수 없습니다.")
         st.stop()
-    
+    # ----------------------------------------------------------------
+
     # 2. 점근선 계산
     
     # 수직 점근선
@@ -53,7 +54,7 @@ try:
     
     # 정의역 LaTeX 문자열 생성
     if vertical_asymptote:
-        va_val = vertical_asymptote[0].evalf(3) # 소수점 3자리까지 표시
+        va_val = vertical_asymptote[0].evalf(3) 
         domain_latex = f"$\\{{x \\mid x \\neq {va_val}\}}$"
         va_float = float(va_val)
     else:
@@ -104,7 +105,6 @@ try:
 
         # 수직 점근선 근처의 발산 처리
         if va_float is not None:
-            # 점근선 근처 값들을 NaN으로 처리하여 그래프가 끊기도록 함
             y_vals[np.abs(x_vals - va_float) < 0.05] = np.nan 
 
         # 그래프 그리기
@@ -126,18 +126,16 @@ try:
         ax.set_ylim(y_min, y_max)
         ax.grid(True, linestyle=':', alpha=0.6)
         ax.legend()
-        ax.axhline(0, color='gray', linewidth=0.5) # x축
-        ax.axvline(0, color='gray', linewidth=0.5) # y축
+        ax.axhline(0, color='gray', linewidth=0.5) 
+        ax.axvline(0, color='gray', linewidth=0.5) 
 
         # Streamlit에 그래프 표시
         st.pyplot(fig)
 
-# 6. 오류 발생 시 디버깅 정보 출력 강화
 except Exception as e:
     st.error("❌ **함수 입력 또는 계산에 치명적인 오류가 발생했습니다.**")
     st.info("입력을 확인하거나, 분모가 0인 상수 함수 등 특수한 경우가 아닌지 확인해 주세요. 특히 **곱셈 기호(\*)**를 생략하지 않았는지 확인해 주세요.")
     
-    # 개발자가 문제 원인을 정확히 파악할 수 있도록 실제 에러 메시지를 출력합니다.
     st.subheader("🚨 디버깅 정보 (Traceback Error)")
     st.code(f"Error Type and Message: {type(e).__name__}: {e}")
 
