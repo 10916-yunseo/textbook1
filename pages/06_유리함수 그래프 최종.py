@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 # Streamlit 페이지 설정
 st.set_page_config(
-    page_title="유리함수 그래프 분석기",
+    page_title="유리함수 그래프 분석기 (디버깅 강화)",
     layout="wide"
 )
 
@@ -20,38 +20,42 @@ func_str = st.sidebar.text_input(
 )
 
 st.sidebar.header("그래프 범위")
-x_min = st.sidebar.number_input("x 축 최소값", value=-10.0, step=1.0)
-x_max = st.sidebar.number_input("x 축 최대값", value=10.0, step=1.0)
-y_min = st.sidebar.number_input("y 축 최소값", value=-10.0, step=1.0)
-y_max = st.sidebar.number_input("y 축 최대값", value=10.0, step=1.0)
+# 넓은 기본값으로 설정하여 오류 가능성 최소화
+x_min = st.sidebar.number_input("x 축 최소값", value=-20.0, step=1.0)
+x_max = st.sidebar.number_input("x 축 최대값", value=20.0, step=1.0)
+y_min = st.sidebar.number_input("y 축 최소값", value=-50.0, step=1.0)
+y_max = st.sidebar.number_input("y 축 최대값", value=50.0, step=1.0)
 # --- 사이드바 입력 끝 ---
 
-
+# 주요 로직을 try-except로 감싸 오류 발생 시 사용자에게 명확히 알림
 try:
     # 1. SymPy를 사용하여 함수 분석
     x = sp.Symbol('x')
     f_sym = sp.simplify(func_str)
     
-    # 분자와 분모 추출
+    # 분자와 분모 추출 및 검사
     (numer, denom), _ = sp.fraction(f_sym)
 
+    # 분모가 상수 0인 경우 처리
+    if denom.is_constant() and denom == 0:
+        st.error("입력하신 함수는 분모가 0이므로 수학적으로 정의할 수 없습니다.")
+        st.stop()
+    
     # 2. 점근선 계산
     
-    # 2-1. 수직 점근선 (분모 = 0이 되는 x값)
+    # 수직 점근선
     vertical_asymptote = sp.solve(denom, x)
     
-    # 2-2. 수평 점근선 (x -> inf)
+    # 수평 점근선
     horizontal_asymptote = sp.limit(f_sym, x, sp.oo)
     
-    # 3. 정의역 및 치역 계산 (수정된 부분)
+    # 3. 정의역 및 치역 계산 및 그래프에 사용할 실수 값 준비
     
     # 정의역 LaTeX 문자열 생성
     if vertical_asymptote:
-        # SymPy 결과가 소수로 나올 수 있으므로, .evalf(3)로 소수점 3자리까지 표시
-        va_val = vertical_asymptote[0].evalf(3)
-        # st.markdown()을 사용하므로 LaTeX 이스케이프에 주의
+        va_val = vertical_asymptote[0].evalf(3) # 소수점 3자리까지 표시
         domain_latex = f"$\\{{x \\mid x \\neq {va_val}\}}$"
-        va_float = float(va_val) # 그래프에 사용할 실수 값
+        va_float = float(va_val)
     else:
         domain_latex = "모든 실수 $\\mathbb{R}$"
         va_float = None
@@ -60,7 +64,7 @@ try:
     if horizontal_asymptote.is_real and horizontal_asymptote != sp.oo:
         ha_val = horizontal_asymptote.evalf(3)
         range_latex = f"$\\{{y \\mid y \\neq {ha_val}\}}$"
-        ha_float = float(ha_val) # 그래프에 사용할 실수 값
+        ha_float = float(ha_val)
     else:
         range_latex = "모든 실수 $\\mathbb{R}$"
         ha_float = None
@@ -128,9 +132,13 @@ try:
         # Streamlit에 그래프 표시
         st.pyplot(fig)
 
+# 6. 오류 발생 시 디버깅 정보 출력 강화
 except Exception as e:
-    st.error("함수 입력 또는 계산에 문제가 발생했습니다. 입력을 확인하거나 분모가 항상 0이 되는 등의 특수한 경우가 아닌지 확인해 주세요.")
-    st.info("💡 **팁**: 입력은 Python/SymPy 문법을 따라야 합니다. 예: `(2*x + 1)/(x - 3)`. 곱셈은 `*`를 사용하세요.")
+    st.error("❌ **함수 입력 또는 계산에 치명적인 오류가 발생했습니다.**")
+    st.info("입력을 확인하거나, 분모가 0인 상수 함수 등 특수한 경우가 아닌지 확인해 주세요. 특히 **곱셈 기호(\*)**를 생략하지 않았는지 확인해 주세요.")
+    
+    # 개발자가 문제 원인을 정확히 파악할 수 있도록 실제 에러 메시지를 출력합니다.
+    st.subheader("🚨 디버깅 정보 (Traceback Error)")
+    st.code(f"Error Type and Message: {type(e).__name__}: {e}")
 
 st.markdown("---")
-st.markdown("© 2025 Gemini AI Assistant")
