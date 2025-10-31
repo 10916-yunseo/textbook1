@@ -34,27 +34,29 @@ def generate_rational_function_problems(num_problems=30):
             if not va_sol: continue
             
             va = va_sol[0]
-            va_val_sympy = va.evalf(3)
-            va_float = float(va_val_sympy)
+            # SymPy 객체의 문자열 표현을 사용 (불필요한 .00 방지)
+            va_val_str_raw = str(va.evalf(3).p if va.is_real else va)
+            va_float = float(va.evalf())
             
             ha_sympy = sp.limit(f_sym, x, sp.oo)
-            ha_val_sympy = ha_sympy.evalf(3)
-            ha_float = float(ha_val_sympy)
+            ha_val_str_raw = str(ha_sympy.evalf(3).p if ha_sympy.is_real else ha_sympy)
+            ha_float = float(ha_sympy.evalf())
             
         except Exception:
             continue
 
-        solution_va = f"$x = {va_val_sympy}$"
-        solution_ha = f"$y = {ha_val_sympy}$"
+        # LaTeX 출력 포맷 (불필요한 .00 제거된 문자열 사용)
+        solution_va = f"$x = {va_val_str_raw}$"
+        solution_ha = f"$y = {ha_val_str_raw}$"
         
         explanation = f"""
         **1. 수직 점근선 ($\mathbf{{x}}$)**
         - 분모가 0이 되는 $x$ 값을 찾습니다. ${sp.latex(denom)} = 0$
-        - $x = {va_val_sympy}$ 입니다. (정답: $\mathbf{{{solution_va}}}$)
+        - $x = {va_val_str_raw}$ 입니다. (정답: $\mathbf{{{solution_va}}}$)
         
         **2. 수평 점근선 ($\mathbf{{y}}$)**
         - 분자와 분모의 차수가 같으므로, 최고차항 계수의 비 $\\frac{{{a}}}{{{c}}}$를 구합니다.
-        - $y = {ha_val_sympy}$ 입니다. (정답: $\mathbf{{{solution_ha}}}$)
+        - $y = {ha_val_str_raw}$ 입니다. (정답: $\mathbf{{{solution_ha}}}$)
         """
 
         problems.append({
@@ -64,8 +66,10 @@ def generate_rational_function_problems(num_problems=30):
             'va_ans': solution_va,
             'ha_ans': solution_ha,
             'explanation': explanation,
-            'va_val': va_float,
-            'ha_val': ha_float,
+            'va_val': va_float,  # 그래프용 실수
+            'ha_val': ha_float,  # 그래프용 실수
+            'va_exact': va,      # 채점용 SymPy 객체
+            'ha_exact': ha_sympy, # 채점용 SymPy 객체
         })
         
     return problems
@@ -77,18 +81,15 @@ def plot_rational_function(f_sym, va_float, ha_float, va_val_str, ha_val_str, x_
         x = sp.Symbol('x')
         f_np = sp.lambdify(x, f_sym, 'numpy')
         
-        # X 값 생성 시 점근선을 피하기 위해 두 영역으로 나눔 (그래프 안정화)
         x_vals = np.linspace(x_min, x_max, 500)
         
         if va_float is not None and x_min < va_float < x_max:
-            # 점근선 근처 값들을 NaN 처리
             x_vals_1 = np.linspace(x_min, va_float - 0.01, 250)
             x_vals_2 = np.linspace(va_float + 0.01, x_max, 250)
             x_vals = np.concatenate([x_vals_1, x_vals_2])
         
         y_vals = f_np(x_vals)
         
-        # Y 값 범위 초과 시 NaN 처리
         y_vals[y_vals > y_max * 1.5] = np.nan
         y_vals[y_vals < y_min * 1.5] = np.nan
 
@@ -118,14 +119,13 @@ def plot_rational_function(f_sym, va_float, ha_float, va_val_str, ha_val_str, x_
         st.error("📉 **그래프를 그리는 중 오류가 발생했습니다.**")
         st.warning("입력 함수, 또는 설정된 X, Y 범위가 계산하기 어렵거나 너무 좁을 수 있습니다.")
         st.info("X, Y 축 범위를 넓게 설정해 보세요.")
-        # print(f"Graph Plot Error: {type(e).__name__}: {e}") # 디버깅용
+
 
 # --- 탭 1: 그래프 분석기 (사용자 유리식 입력) ---
 def graph_analyzer_tab():
     st.header("📊 사용자 유리식 그래프 분석기")
     st.markdown("분석을 원하는 유리식($x$에 대한 식)을 입력하고 그래프를 확인하세요. (예: `(2*x + 1)/(x - 3)` 또는 `x**2/(x+1)`)")
     
-    # --- 사이드바 입력 ---
     with st.sidebar:
         st.header("그래프 분석기 설정")
         func_str = st.text_input(
@@ -138,28 +138,25 @@ def graph_analyzer_tab():
         x_max = st.number_input("x 축 최대값", value=10.0, step=1.0, key="a_xmax")
         y_min = st.number_input("y 축 최소값", value=-10.0, step=1.0, key="a_ymin")
         y_max = st.number_input("y 축 최대값", value=10.0, step=1.0, key="a_ymax")
-    # --- 사이드바 입력 끝 ---
 
     if func_str:
         try:
             x = sp.Symbol('x')
             f_sym = sp.simplify(func_str)
-            
-            # 분자와 분모 추출
             numer, denom = sp.fraction(f_sym)
 
-            # 2. 점근선 계산
             va_sol = sp.solve(denom, x)
             ha_sympy = sp.limit(f_sym, x, sp.oo)
             
-            # 값 정리
-            va_val = va_sol[0].evalf(3) if va_sol else None
-            va_float = float(va_val) if va_val is not None else None
-            va_str = str(va_val) if va_val is not None else "없음"
+            # ⭐ 정의역/치역 포맷 개선 적용
+            va_val = va_sol[0] if va_sol else None
+            va_str = str(va_val.p) if va_val is not None and va_val.is_real else "없음"
+            va_float = float(va_val.evalf()) if va_val is not None else None
             
-            ha_val = ha_sympy.evalf(3) if ha_sympy != sp.oo else None
-            ha_float = float(ha_val) if ha_val is not None and ha_val != sp.oo else None
-            ha_str = str(ha_val) if ha_val is not None and ha_val != sp.oo else "없음"
+            ha_val = ha_sympy if ha_sympy.is_real and ha_sympy != sp.oo else None
+            ha_str = str(ha_val.p) if ha_val is not None else "없음"
+            ha_float = float(ha_val.evalf()) if ha_val is not None else None
+
 
             col1, col2 = st.columns(2)
 
@@ -173,9 +170,8 @@ def graph_analyzer_tab():
                 
                 st.markdown("#### 📖 정의역 및 치역")
                 
-                # ⭐ SyntaxError 수정: 닫는 중괄호 '}'를 '}}'로 이스케이프
+                # ⭐ SyntaxError 수정 및 포맷 개선 적용
                 domain_latex = f"$\\{{x \\mid x \\neq {va_str}\}}\\$" if va_val is not None else "모든 실수 $\\mathbb{R}$"
-                # ⭐ SyntaxError 수정: 닫는 중괄호 '}'를 '}}'로 이스케이프
                 range_latex = f"$\\{{y \\mid y \\neq {ha_str}\}}\\$" if ha_val is not None and ha_val != sp.oo else "모든 실수 $\\mathbb{R}$"
                 
                 st.markdown(f"**정의역**: {domain_latex}")
@@ -189,7 +185,7 @@ def graph_analyzer_tab():
             st.error("❌ **유리식 분석에 실패했습니다.**")
             st.warning("입력 형식이 잘못되었거나, 수식에 $x$가 포함되어 있지 않을 수 있습니다.")
             st.info("💡 팁: 곱셈은 `*`를 사용하고, 거듭제곱은 `**`를 사용하세요.")
-            # print(f"Analyzer Error: {type(e).__name__}: {e}") # 디버깅용
+
 
 # --- 탭 2: 유리함수 문제 풀이 ---
 def quiz_tab():
@@ -201,7 +197,7 @@ def quiz_tab():
         st.session_state.current_index = 0
         st.session_state.attempts = [0] * 30 
         st.session_state.show_solution = [False] * 30 
-        st.session_state.feedback_message = "" # 피드백 메시지 상태 추가
+        st.session_state.feedback_message = ""
 
     total_problems = len(st.session_state.problems)
     current_index = st.session_state.current_index
@@ -213,7 +209,7 @@ def quiz_tab():
     st.markdown("다음 유리함수의 **수직 점근선**과 **수평 점근선**을 구하고 입력하세요.")
     st.latex(f"f(x) = {current_problem['function_str']}")
     
-    # --- 문제 새로고침 및 이동 버튼 ---
+    # --- 문제 새로고침 및 이동 버튼 (생략) ---
     col_nav_1, col_nav_2, col_nav_3, col_nav_4 = st.columns([1, 1, 1, 3])
 
     def change_problem(direction):
@@ -246,24 +242,33 @@ def quiz_tab():
     # --- 입력 및 채점 ---
     st.subheader("정답 입력")
     
-    # 입력 필드 key를 사용하여 페이지 이동 시 값이 남아있지 않도록 처리
-    user_va = st.text_input("수직 점근선 (예: x=3)", key="input_va_quiz")
-    user_ha = st.text_input("수평 점근선 (예: y=2)", key="input_ha_quiz")
+    user_va = st.text_input("수직 점근선 (예: x=3 또는 x=1/2)", key="input_va_quiz")
+    user_ha = st.text_input("수평 점근선 (예: y=2 또는 y=-0.5)", key="input_ha_quiz")
 
     if st.button("정답 확인 ✅", key="submit_btn"):
         
-        # 정답 및 사용자 입력 클리닝 (공백 제거 및 소문자 통일)
-        clean_user_va = user_va.lower().replace(" ", "")
-        clean_user_ha = user_ha.lower().replace(" ", "")
+        is_all_correct = False
         
-        # 정답에서 LaTeX 기호 제거
-        clean_ans_va = current_problem['va_ans'].strip('$').lower().replace(" ", "")
-        clean_ans_ha = current_problem['ha_ans'].strip('$').lower().replace(" ", "")
-        
-        is_correct_va = clean_user_va == clean_ans_va
-        is_correct_ha = clean_user_ha == clean_ans_ha
-        is_all_correct = is_correct_va and is_correct_ha
-        
+        # ⭐ 채점 로직 강화: SymPy를 이용해 분수/소수/정수 입력 모두 허용
+        try:
+            # 1. 사용자 입력에서 'x='와 'y=' 제거 후 값만 추출
+            va_value_str = user_va.lower().replace(" ", "").replace("x=", "")
+            ha_value_str = user_ha.lower().replace(" ", "").replace("y=", "")
+
+            # 2. SymPy로 사용자 입력 값을 파싱 (분수, 정수, 소수 모두 SymPy 객체로 변환)
+            user_va_sym = sp.parse_expr(va_value_str)
+            user_ha_sym = sp.parse_expr(ha_value_str)
+            
+            # 3. SymPy 객체 간의 정확한 비교 (소수점 자릿수 무시하고 수학적으로 동등한지 확인)
+            is_correct_va = user_va_sym == current_problem['va_exact']
+            is_correct_ha = user_ha_sym == current_problem['ha_exact']
+            is_all_correct = is_correct_va and is_correct_ha
+            
+        except (sp.SympifyError, ValueError, IndexError):
+            # 입력 형식 자체가 잘못된 경우 (예: "adf" 입력)
+            st.session_state.feedback_message = "❌ **입력 형식이 잘못되었습니다.** 'x=값' 또는 'y=값' 형태로 입력해 주세요. (예: x=1/2)"
+            st.rerun()
+
         # 1. 시도 횟수 업데이트
         st.session_state.attempts[current_index] += 1
         current_attempts = st.session_state.attempts[current_index]
@@ -276,8 +281,6 @@ def quiz_tab():
         else:
             if current_attempts < 2:
                 st.session_state.feedback_message = f"오답이에요. 다시 한번 풀어보세요! (현재 시도 횟수: {current_attempts}회)"
-                
-                # 힌트 제공
                 if not is_correct_va and not is_correct_ha:
                      st.session_state.feedback_message += "\n\n(수직 점근선과 수평 점근선 모두 틀렸습니다.)"
                 elif not is_correct_va:
@@ -286,11 +289,9 @@ def quiz_tab():
                      st.session_state.feedback_message += "\n\n(수평 점근선($y$)을 다시 확인해 보세요.)"
                 
             else:
-                # 수정된 부분: 두 번 틀리면 풀이 표시 플래그 ON
                 st.session_state.feedback_message = "😭 **오답입니다.** 두 번 틀리셨으므로 정답과 풀이를 보여드립니다."
                 st.session_state.show_solution[current_index] = True
         
-        # 채점 후 페이지 새로고침
         st.rerun() 
         
     # --- 피드백 메시지 표시 ---
@@ -304,7 +305,7 @@ def quiz_tab():
         else:
             st.info(st.session_state.feedback_message)
 
-    # --- 정답 및 풀이 섹션 (맞추거나, 두 번 틀렸을 때만 표시) ---
+    # --- 정답 및 풀이 섹션 ---
     if st.session_state.show_solution[current_index] or st.session_state.attempts[current_index] >= 2:
         st.subheader("💡 정답 및 풀이")
         st.markdown(f"**정답: 수직 점근선**은 {current_problem['va_ans']}, **수평 점근선**은 {current_problem['ha_ans']} 입니다.")
@@ -344,14 +345,12 @@ def main():
         st.session_state.input_va_quiz = ""
         st.session_state.input_ha_quiz = ""
 
-    # 탭 생성
     tab1, tab2 = st.tabs(["📊 그래프 분석기", "📝 유리함수 문제 풀이"])
     
     with tab1:
         graph_analyzer_tab()
     
     with tab2:
-        # 문제 풀이 탭 전용 사이드바 설정
         with st.sidebar:
             st.header("퀴즈 그래프 범위 설정")
             st.number_input("x 축 최소값", value=-10.0, step=1.0, key="g_xmin_quiz")
