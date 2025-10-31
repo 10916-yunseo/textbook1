@@ -172,7 +172,7 @@ def graph_analyzer_tab():
                 st.write(f"**수평 점근선 (HA)**: $y = {ha_str}$")
                 
                 st.markdown("#### 📖 정의역 및 치역")
-                domain_latex = f"$\\{{x \\mid x \\neq {va_str}\\}$" if va_val is not None else "모든 실수 $\\mathbb{R}$"
+                domain_latex = f"$\\{{x \\mid x \\neq {va_str}\}}\\$" if va_val is not None else "모든 실수 $\\mathbb{R}$"
                 range_latex = f"$\\{{y \\mid y \\neq {ha_str}\\}$" if ha_val is not None and ha_val != sp.oo else "모든 실수 $\\mathbb{R}$"
                 st.markdown(f"**정의역**: {domain_latex}")
                 st.markdown(f"**치역**: {range_latex}")
