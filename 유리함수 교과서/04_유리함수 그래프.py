@@ -158,8 +158,8 @@ def graph_analyzer_tab():
             va_str = str(va_val) if va_val is not None else "없음"
             
             ha_val = ha_sympy.evalf(3) if ha_sympy != sp.oo else None
-            ha_float = float(ha_val) if ha_val is not None else None
-            ha_str = str(ha_val) if ha_val is not None else "없음"
+            ha_float = float(ha_val) if ha_val is not None and ha_val != sp.oo else None
+            ha_str = str(ha_val) if ha_val is not None and ha_val != sp.oo else "없음"
 
             col1, col2 = st.columns(2)
 
@@ -172,8 +172,12 @@ def graph_analyzer_tab():
                 st.write(f"**수평 점근선 (HA)**: $y = {ha_str}$")
                 
                 st.markdown("#### 📖 정의역 및 치역")
+                
+                # ⭐ SyntaxError 수정: 닫는 중괄호 '}'를 '}}'로 이스케이프
                 domain_latex = f"$\\{{x \\mid x \\neq {va_str}\}}\\$" if va_val is not None else "모든 실수 $\\mathbb{R}$"
-                range_latex = f"$\\{{y \\mid y \\neq {ha_str}\\}$" if ha_val is not None and ha_val != sp.oo else "모든 실수 $\\mathbb{R}$"
+                # ⭐ SyntaxError 수정: 닫는 중괄호 '}'를 '}}'로 이스케이프
+                range_latex = f"$\\{{y \\mid y \\neq {ha_str}\}}\\$" if ha_val is not None and ha_val != sp.oo else "모든 실수 $\\mathbb{R}$"
+                
                 st.markdown(f"**정의역**: {domain_latex}")
                 st.markdown(f"**치역**: {range_latex}")
                 
@@ -185,6 +189,7 @@ def graph_analyzer_tab():
             st.error("❌ **유리식 분석에 실패했습니다.**")
             st.warning("입력 형식이 잘못되었거나, 수식에 $x$가 포함되어 있지 않을 수 있습니다.")
             st.info("💡 팁: 곱셈은 `*`를 사용하고, 거듭제곱은 `**`를 사용하세요.")
+            # print(f"Analyzer Error: {type(e).__name__}: {e}") # 디버깅용
 
 # --- 탭 2: 유리함수 문제 풀이 ---
 def quiz_tab():
@@ -270,7 +275,7 @@ def quiz_tab():
             
         else:
             if current_attempts < 2:
-                st.session_state.feedback_message = f"오답입니다. 다시 한번 풀어보세요! (현재 시도 횟수: {current_attempts}회)"
+                st.session_state.feedback_message = f"오답이에요. 다시 한번 풀어보세요! (현재 시도 횟수: {current_attempts}회)"
                 
                 # 힌트 제공
                 if not is_correct_va and not is_correct_ha:
@@ -293,6 +298,8 @@ def quiz_tab():
         if "정답입니다" in st.session_state.feedback_message:
             st.success(st.session_state.feedback_message)
         elif "오답입니다" in st.session_state.feedback_message:
+            st.error(st.session_state.feedback_message)
+        elif "오답이에요" in st.session_state.feedback_message:
             st.warning(st.session_state.feedback_message)
         else:
             st.info(st.session_state.feedback_message)
@@ -331,6 +338,11 @@ def main():
         st.session_state.g_xmax_quiz = 10.0
         st.session_state.g_ymin_quiz = -10.0
         st.session_state.g_ymax_quiz = 10.0
+
+    # 입력창 초기값을 위해 key 초기화
+    if 'input_va_quiz' not in st.session_state:
+        st.session_state.input_va_quiz = ""
+        st.session_state.input_ha_quiz = ""
 
     # 탭 생성
     tab1, tab2 = st.tabs(["📊 그래프 분석기", "📝 유리함수 문제 풀이"])
