@@ -1,5 +1,6 @@
 import streamlit as st
-from sympy import symbols, simplify, Poly, denom
+# numer와 denom을 명시적으로 import
+from sympy import symbols, simplify, numer, denom
 from sympy.parsing.mathematica import parse_mathematica
 import random
 
@@ -10,7 +11,7 @@ x = symbols('x')
 def display_concept():
     st.header("✨ 유리식(Rational Expression)의 개념")
     st.markdown("""
-    유리식이란 두 **다항식(A, B)**을 이용하여 $\\frac{A}{B}$ 꼴로 나타낼 수 있는 식을 말합니다 (단, $B \\ne 0$).
+    **유리식**이란 두 다항식($A, B$)을 이용하여 $\\frac{A}{B}$ 꼴로 나타낼 수 있는 식을 말합니다 (단, $B \\ne 0$).
     """)
 
     st.subheader("💡 다항식과의 비교")
@@ -29,6 +30,8 @@ def display_concept():
     * **곱셈/나눗셈**: 인수분해하여 **약분**한 후, 곱셈은 분자끼리/분모끼리, 나눗셈은 역수를 취해 곱셈으로 바꿔 계산합니다.
     """)
 
+# ---
+
 ## --- 2. 문제 생성 및 풀이 함수 ---
 def generate_problem():
     st.header("🔢 유리식의 계산 문제")
@@ -36,10 +39,10 @@ def generate_problem():
     # 문제 유형 선택 (간단한 덧셈/뺄셈)
     op = random.choice(['+', '-'])
 
-    # 난이도 조절을 위한 분모 설정
+    # 난이도 조절을 위한 계수 설정
     a, b, c, d = random.sample(range(1, 5), 4)
     
-    # 간단한 분모 생성 (x에 대한 1차식 또는 x^2)
+    # 분모 생성 (x에 대한 1차식)
     denominator_A_expr = (x + a)
     denominator_B_expr = (x + b)
 
@@ -50,7 +53,7 @@ def generate_problem():
     numerator_A = numerator_A_coeffs[0] * x + numerator_A_coeffs[1]
     numerator_B = numerator_B_coeffs[0] * x + numerator_B_coeffs[1]
 
-    # 문제 식
+    # 문제 식 구성
     problem_expr_A = numerator_A / denominator_A_expr
     problem_expr_B = numerator_B / denominator_B_expr
 
@@ -66,13 +69,15 @@ def generate_problem():
     st.latex(problem_latex)
     
     # 사용자 입력
-    user_answer = st.text_input("계산 결과를 입력하세요 (예: (2*x+1)/(x+3))", key="answer_input")
+    st.info("입력 형식 예시: (2*x+1)/(x+3) (괄호를 사용하여 분자/분모를 명확히 구분해주세요)")
+    user_answer = st.text_input("계산 결과를 입력하세요", key="answer_input")
 
     # 정답 계산 (sympy 사용)
     simplified_solution = simplify(solution_expr)
     
-    # 분모, 분자 분리 (sympy Poly 사용)
-    final_num = Poly(simplified_solution.subs(x, x), x).as_expr()
+    # 분자와 분모를 안전하게 분리 (Poly 대신 numer/denom 사용)
+    # 이 부분이 이전의 'PolynomialError'를 해결합니다.
+    final_num = numer(simplified_solution)
     final_den = denom(simplified_solution)
 
     # 정답 확인 버튼
@@ -83,14 +88,10 @@ def generate_problem():
 
         try:
             # 사용자의 입력 식을 sympy 객체로 변환 및 단순화
-            # 주의: 사용자가 입력한 문자열을 수학식으로 파싱하는 과정은 매우 까다롭습니다.
-            # 가장 단순한 형태로 변환하기 위해 parse_mathematica를 사용 (수동으로 변환 규칙을 적용할 수도 있음)
-            
-            # 사용자 입력 형식을 'a/b' 형태로 가정하고 파싱
             user_expr_raw = parse_mathematica(user_answer)
             user_simplified = simplify(user_expr_raw)
 
-            # 정답과 사용자 답의 차이가 0인지 확인
+            # 정답과 사용자 답의 차이가 0인지 확인 (수학적으로 동등한지 확인)
             difference = simplify(user_simplified - simplified_solution)
 
             if difference == 0:
@@ -105,12 +106,13 @@ def generate_problem():
             st.caption(f"($x$가 분모를 0으로 만들지 않는다는 가정 하에)")
 
         except Exception as e:
-            st.error(f"입력 형식이 올바르지 않습니다. (예: (2*x+1)/(x+3)) 에러: {e}")
+            st.error(f"입력 형식이 올바르지 않거나 파싱 중 오류가 발생했습니다. 입력 형식을 확인해주세요. (에러: {e})")
 
     # 새 문제 버튼
     if st.button("새 문제 생성"):
         st.experimental_rerun()
 
+# ---
 
 ## --- 3. Streamlit 메인 함수 ---
 def main():
